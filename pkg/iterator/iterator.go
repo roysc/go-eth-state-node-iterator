@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 )
 
+// Simplified trie node iterator
 type NodeIterator interface {
 	Next(bool) bool
 	Error() error
@@ -37,11 +38,10 @@ type NodeIterator interface {
 type prefixBoundIterator struct {
 	current trie.NodeIterator
 	endKey []byte
-	// endHash common.Hash
 }
 
 func (it *prefixBoundIterator) Next(descend bool) bool {
-	if it.endKey == nil {		// todo: want?
+	if it.endKey == nil {
 		return it.current.Next(descend)
 	}
 	cmp := bytes.Compare(it.current.Path(), it.endKey) // stop before endKey
