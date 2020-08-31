@@ -21,9 +21,9 @@ import (
 	"bytes"
 
 	// "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // Simplified trie node iterator
@@ -37,7 +37,7 @@ type NodeIterator interface {
 
 type prefixBoundIterator struct {
 	current trie.NodeIterator
-	endKey []byte
+	endKey  []byte
 }
 
 func (it *prefixBoundIterator) Next(descend bool) bool {
@@ -106,7 +106,7 @@ func VisitSubtries(tree state.Trie, cutDepth int, callback func(NodeIterator)) {
 
 	for i := 0; i < len(prefixes)-1; i++ {
 		key := prefixes[i]
-		if len(key) % 2 != 0 {
+		if len(key)%2 != 0 {	// zero-pad for odd-length keys
 			key = append(key, 0)
 		}
 		it := tree.NodeIterator(HexToKeyBytes(key))
