@@ -17,10 +17,9 @@
 package iterator
 
 import (
-	// "fmt"
 	"bytes"
+	"math/bits"
 
-	// "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/trie"
@@ -69,37 +68,73 @@ func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) NodeIterator {
 	return &prefixBoundIterator{current: it, endKey: to}
 }
 
-// array of 0..f with prefix
-func prefixedNibbles(prefix []byte) [][]byte {
-	var ret [][]byte
-	for i := byte(0); i < 16; i++ {
-		elem := make([]byte, len(prefix))
-		copy(elem, prefix)
-		elem = append(elem, i)
-		ret = append(ret, elem)
+type prefixGenerator struct {
+	current []byte
+	step byte
+	stepIndex uint
+}
+
+func newPrefixGenerator(nbins uint) prefixGenerator {
+	if bits.OnesCount(nbins) != 1 {
+		panic("nbins must be a power of 2")
 	}
-	return ret
+	// determine step dist. and path index at which to step
+	var step byte
+	var stepIndex uint
+	for ; nbins != 0; stepIndex++ {
+		divisor := byte(nbins & 0xf)
+		if divisor != 0 {
+			step = 0x10 / divisor
+		}
+		nbins = nbins >> 4
+	}
+	return prefixGenerator{
+		current: make([]byte, stepIndex),
+		step: step,
+		stepIndex: stepIndex-1,
+	}
+}
+
+func (gen *prefixGenerator) Value() []byte {
+	return gen.current
+}
+
+func (gen *prefixGenerator) HasNext() bool {
+	return gen.current[0] <= 0xf
+}
+
+func (gen *prefixGenerator) Next() {
+	gen.current[gen.stepIndex] += gen.step
+	overflow := false
+	for ix := 0; ix < len(gen.current); ix++ {
+		rix := len(gen.current)-1-ix // reverse
+		if overflow {
+			gen.current[rix]++
+			overflow = false
+		}
+		if rix != 0 && gen.current[rix] > 0xf {
+			gen.current[rix] = 0
+			overflow = true
+		}
+	}
 }
 
 // Generates ordered cartesian product of all nibbles of given length, w/ optional prefix
 // eg. MakePaths([4], 2) => [[4 0 0] [4 0 1] ... [4 f f]]
-func MakePaths(prefix []byte, length int) [][]byte {
-	paths := [][]byte{prefix}
-	for depth := 0; depth < length; depth++ {
-		var newPaths [][]byte
-		for _, path := range paths {
-			for _, newPath := range prefixedNibbles(path) {
-				newPaths = append(newPaths, newPath)
-			}
-		}
-		paths = newPaths
+func MakePaths(prefix []byte, nbins uint) [][]byte {
+	var res [][]byte
+	for it := newPrefixGenerator(nbins); it.HasNext(); it.Next() {
+		next := make([]byte, len(prefix))
+		copy(next, prefix)
+		next = append(next, it.Value()...)
+		res = append(res, next)
 	}
-	return paths
+	return res
 }
 
 // Apply a function to 16^cutdepth subtries divided by path prefix
-func VisitSubtries(tree state.Trie, cutDepth int, callback func(NodeIterator)) {
-	prefixes := MakePaths(nil, cutDepth)
+func VisitSubtries(tree state.Trie, nbins uint, callback func(NodeIterator)) {
+	prefixes := MakePaths(nil, nbins)
 	// pre- and postpend nil to include root & tail
 	prefixes = append(prefixes, nil)
 	prefixes = append([][]byte{nil}, prefixes...)
