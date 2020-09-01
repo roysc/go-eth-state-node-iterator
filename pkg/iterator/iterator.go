@@ -119,8 +119,9 @@ func (gen *prefixGenerator) Next() {
 	}
 }
 
-// Generates ordered cartesian product of all nibbles of given length, w/ optional prefix
-// eg. MakePaths([4], 2) => [[4 0 0] [4 0 1] ... [4 f f]]
+// Generates paths that cut the trie domain into "nbins" bins, w/ optional prefix
+// eg. MakePaths([], 2) => [[0] [8]]
+//	   MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
 func MakePaths(prefix []byte, nbins uint) [][]byte {
 	var res [][]byte
 	for it := newPrefixGenerator(nbins); it.HasNext(); it.Next() {
@@ -132,7 +133,7 @@ func MakePaths(prefix []byte, nbins uint) [][]byte {
 	return res
 }
 
-// Apply a function to 16^cutdepth subtries divided by path prefix
+// Apply a function to nbins subtries divided according to path prefix
 func VisitSubtries(tree state.Trie, nbins uint, callback func(NodeIterator)) {
 	prefixes := MakePaths(nil, nbins)
 	// pre- and postpend nil to include root & tail
