@@ -122,7 +122,7 @@ func (gen *prefixGenerator) Next() {
 	}
 }
 
-// Generates paths that cut the trie domain into "nbins" bins, w/ optional prefix
+// Generates paths that cut the trie domain into "nbins" uniform bins, w/ optional prefix
 // eg. MakePaths([], 2) => [[0] [8]]
 //	   MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
 func MakePaths(prefix []byte, nbins uint) [][]byte {
@@ -136,19 +136,21 @@ func MakePaths(prefix []byte, nbins uint) [][]byte {
 	return res
 }
 
-// Apply a function to nbins subtries divided according to path prefix
-func VisitSubtries(tree state.Trie, nbins uint, callback func(NodeIterator)) {
+// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
+func SubtrieIterators(tree state.Trie, nbins uint) []NodeIterator {
 	prefixes := MakePaths(nil, nbins)
 	// pre- and postpend nil to include root & tail
 	prefixes = append(prefixes, nil)
 	prefixes = append([][]byte{nil}, prefixes...)
 
+	var iters []NodeIterator
 	for i := 0; i < len(prefixes)-1; i++ {
 		key := prefixes[i]
 		if len(key)%2 != 0 {	// zero-pad for odd-length keys
 			key = append(key, 0)
 		}
 		it := tree.NodeIterator(HexToKeyBytes(key))
-		callback(NewPrefixBoundIterator(it, prefixes[i+1]))
+		iters = append(iters, NewPrefixBoundIterator(it, prefixes[i+1]))
 	}
+	return iters
 }
