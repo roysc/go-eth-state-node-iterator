@@ -136,21 +136,50 @@ func MakePaths(prefix []byte, nbins uint) [][]byte {
 	return res
 }
 
-// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
-func SubtrieIterators(tree state.Trie, nbins uint) []NodeIterator {
-	prefixes := MakePaths(nil, nbins)
+func eachPrefixRange(prefix []byte, nbins uint, callback func ([]byte, []byte)) {
+	prefixes := MakePaths(prefix, nbins)
 	// pre- and postpend nil to include root & tail
 	prefixes = append(prefixes, nil)
 	prefixes = append([][]byte{nil}, prefixes...)
-
-	var iters []NodeIterator
 	for i := 0; i < len(prefixes)-1; i++ {
 		key := prefixes[i]
 		if len(key)%2 != 0 {	// zero-pad for odd-length keys
 			key = append(key, 0)
 		}
-		it := tree.NodeIterator(HexToKeyBytes(key))
-		iters = append(iters, NewPrefixBoundIterator(it, prefixes[i+1]))
+		callback(key, prefixes[i+1])
 	}
+}
+
+// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
+func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
+	var iters []trie.NodeIterator
+	eachPrefixRange(nil, nbins, func (key []byte, endKey []byte) {
+		it := tree.NodeIterator(HexToKeyBytes(key))
+		iters = append(iters, NewPrefixBoundIterator(it, endKey))
+	})
 	return iters
+}
+
+// Factory for per-bin subtrie iterators
+type SubtrieIteratorFactory struct {
+	tree state.Trie
+	startKeys, endKeys [][]byte
+}
+
+func (fac *SubtrieIteratorFactory) Length() int { return len(fac.startKeys) }
+
+func (fac *SubtrieIteratorFactory) IteratorAt(bin uint) *PrefixBoundIterator {
+	it := fac.tree.NodeIterator(HexToKeyBytes(fac.startKeys[bin]))
+	return NewPrefixBoundIterator(it, fac.endKeys[bin])
+}
+
+// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
+func NewSubtrieIteratorFactory(tree state.Trie, nbins uint) SubtrieIteratorFactory {
+	starts := make([][]byte, 0, nbins)
+	ends := make([][]byte, 0, nbins)
+	eachPrefixRange(nil, nbins, func (key []byte, endKey []byte) {
+		starts = append(starts, key)
+		ends = append(ends, endKey)
+	})
+	return SubtrieIteratorFactory{tree: tree, startKeys: starts, endKeys: ends}
 }
