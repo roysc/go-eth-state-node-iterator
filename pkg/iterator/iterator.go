@@ -37,7 +37,6 @@ func (it *PrefixBoundIterator) Next(descend bool) bool {
 	if !it.current.Next(descend) {
 		return false
 	}
-	p := it.current.Path(); if len(p) >= 4 { p = p[:4] }
 	// stop if underlying iterator went past endKey
 	cmp := bytes.Compare(it.current.Path(), it.endKey)
 	return cmp <= 0
@@ -61,7 +60,7 @@ func (it *PrefixBoundIterator) LeafKey() []byte {
 func (it *PrefixBoundIterator) LeafBlob() []byte {
 	return it.current.LeafBlob()
 }
-func (it *PrefixBoundIterator) LeafProof() [][]byte	 {
+func (it *PrefixBoundIterator) LeafProof() [][]byte {
 	return it.current.LeafProof()
 }
 func (it *PrefixBoundIterator) Parent() common.Hash {
@@ -74,8 +73,8 @@ func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) *PrefixBoundIterato
 }
 
 type prefixGenerator struct {
-	current []byte
-	step byte
+	current   []byte
+	step      byte
 	stepIndex uint
 }
 
@@ -94,9 +93,9 @@ func newPrefixGenerator(nbins uint) prefixGenerator {
 		nbins = nbins >> 4
 	}
 	return prefixGenerator{
-		current: make([]byte, stepIndex),
-		step: step,
-		stepIndex: stepIndex-1,
+		current:   make([]byte, stepIndex),
+		step:      step,
+		stepIndex: stepIndex - 1,
 	}
 }
 
@@ -112,7 +111,7 @@ func (gen *prefixGenerator) Next() {
 	gen.current[gen.stepIndex] += gen.step
 	overflow := false
 	for ix := 0; ix < len(gen.current); ix++ {
-		rix := len(gen.current)-1-ix // reverse
+		rix := len(gen.current) - 1 - ix // reverse
 		if overflow {
 			gen.current[rix]++
 			overflow = false
@@ -124,7 +123,7 @@ func (gen *prefixGenerator) Next() {
 	}
 }
 
-// Generates paths that cut the trie domain into "nbins" uniform bins, w/ optional prefix
+// Generates paths that cut trie domain into "nbins" uniform conterminous bins (w/ opt. prefix)
 // eg. MakePaths([], 2) => [[0] [8]]
 //	   MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
 func MakePaths(prefix []byte, nbins uint) [][]byte {
@@ -138,13 +137,13 @@ func MakePaths(prefix []byte, nbins uint) [][]byte {
 	return res
 }
 
-func eachPrefixRange(prefix []byte, nbins uint, callback func ([]byte, []byte)) {
+func eachPrefixRange(prefix []byte, nbins uint, callback func([]byte, []byte)) {
 	prefixes := MakePaths(prefix, nbins)
 	prefixes = append(prefixes, nil) // include tail
-	prefixes[0] = nil	// set bin 0 left bound to nil to include root
+	prefixes[0] = nil                // set bin 0 left bound to nil to include root
 	for i := 0; i < len(prefixes)-1; i++ {
 		key := prefixes[i]
-		if len(key)%2 != 0 {	// zero-pad for odd-length keys
+		if len(key)%2 != 0 { // zero-pad for odd-length keys
 			key = append(key, 0)
 		}
 		callback(key, prefixes[i+1])
@@ -154,7 +153,7 @@ func eachPrefixRange(prefix []byte, nbins uint, callback func ([]byte, []byte)) 
 // Cut a trie by path prefix, returning `nbins` iterators covering its subtries
 func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
 	var iters []trie.NodeIterator
-	eachPrefixRange(nil, nbins, func (key []byte, endKey []byte) {
+	eachPrefixRange(nil, nbins, func(key []byte, endKey []byte) {
 		it := tree.NodeIterator(HexToKeyBytes(key))
 		iters = append(iters, NewPrefixBoundIterator(it, endKey))
 	})
@@ -163,7 +162,7 @@ func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
 
 // Factory for per-bin subtrie iterators
 type SubtrieIteratorFactory struct {
-	tree state.Trie
+	tree               state.Trie
 	startKeys, endKeys [][]byte
 }
 
@@ -178,7 +177,7 @@ func (fac *SubtrieIteratorFactory) IteratorAt(bin uint) *PrefixBoundIterator {
 func NewSubtrieIteratorFactory(tree state.Trie, nbins uint) SubtrieIteratorFactory {
 	starts := make([][]byte, 0, nbins)
 	ends := make([][]byte, 0, nbins)
-	eachPrefixRange(nil, nbins, func (key []byte, endKey []byte) {
+	eachPrefixRange(nil, nbins, func(key []byte, endKey []byte) {
 		starts = append(starts, key)
 		ends = append(ends, endKey)
 	})
