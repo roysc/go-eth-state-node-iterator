@@ -123,7 +123,7 @@ func (gen *prefixGenerator) Next() {
 	}
 }
 
-// Generates paths that cut trie domain into "nbins" uniform conterminous bins (w/ opt. prefix)
+// Generates paths that cut trie domain into `nbins` uniform conterminous bins (w/ opt. prefix)
 // eg. MakePaths([], 2) => [[0] [8]]
 //	   MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
 func MakePaths(prefix []byte, nbins uint) [][]byte {
