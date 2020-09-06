@@ -34,11 +34,13 @@ func (it *PrefixBoundIterator) Next(descend bool) bool {
 	if it.endKey == nil {
 		return it.current.Next(descend)
 	}
-	cmp := bytes.Compare(it.current.Path(), it.endKey) // stop before endKey
-	if cmp >= 0 {
+	if !it.current.Next(descend) {
 		return false
 	}
-	return it.current.Next(descend)
+	p := it.current.Path(); if len(p) >= 4 { p = p[:4] }
+	// stop if underlying iterator went past endKey
+	cmp := bytes.Compare(it.current.Path(), it.endKey)
+	return cmp <= 0
 }
 
 func (it *PrefixBoundIterator) Error() error {
