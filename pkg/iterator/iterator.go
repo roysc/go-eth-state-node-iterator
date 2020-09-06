@@ -25,21 +25,12 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-// Simplified trie node iterator
-type NodeIterator interface {
-	Next(bool) bool
-	Error() error
-	Hash() common.Hash
-	Path() []byte
-	Leaf() bool
-}
-
-type prefixBoundIterator struct {
+type PrefixBoundIterator struct {
 	current trie.NodeIterator
 	endKey  []byte
 }
 
-func (it *prefixBoundIterator) Next(descend bool) bool {
+func (it *PrefixBoundIterator) Next(descend bool) bool {
 	if it.endKey == nil {
 		return it.current.Next(descend)
 	}
@@ -50,22 +41,34 @@ func (it *prefixBoundIterator) Next(descend bool) bool {
 	return it.current.Next(descend)
 }
 
-func (it *prefixBoundIterator) Error() error {
+func (it *PrefixBoundIterator) Error() error {
 	return it.current.Error()
 }
-func (it *prefixBoundIterator) Hash() common.Hash {
+func (it *PrefixBoundIterator) Hash() common.Hash {
 	return it.current.Hash()
 }
-func (it *prefixBoundIterator) Path() []byte {
+func (it *PrefixBoundIterator) Path() []byte {
 	return it.current.Path()
 }
-func (it *prefixBoundIterator) Leaf() bool {
+func (it *PrefixBoundIterator) Leaf() bool {
 	return it.current.Leaf()
+}
+func (it *PrefixBoundIterator) LeafKey() []byte {
+	return it.current.LeafKey()
+}
+func (it *PrefixBoundIterator) LeafBlob() []byte {
+	return it.current.LeafBlob()
+}
+func (it *PrefixBoundIterator) LeafProof() [][]byte	 {
+	return it.current.LeafProof()
+}
+func (it *PrefixBoundIterator) Parent() common.Hash {
+	return it.current.Parent()
 }
 
 // Iterator with an upper bound value (hex path prefix)
-func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) NodeIterator {
-	return &prefixBoundIterator{current: it, endKey: to}
+func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) *PrefixBoundIterator {
+	return &PrefixBoundIterator{current: it, endKey: to}
 }
 
 type prefixGenerator struct {
