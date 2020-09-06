@@ -138,9 +138,8 @@ func MakePaths(prefix []byte, nbins uint) [][]byte {
 
 func eachPrefixRange(prefix []byte, nbins uint, callback func ([]byte, []byte)) {
 	prefixes := MakePaths(prefix, nbins)
-	// pre- and postpend nil to include root & tail
-	prefixes = append(prefixes, nil)
-	prefixes = append([][]byte{nil}, prefixes...)
+	prefixes = append(prefixes, nil) // include tail
+	prefixes[0] = nil	// set bin 0 left bound to nil to include root
 	for i := 0; i < len(prefixes)-1; i++ {
 		key := prefixes[i]
 		if len(key)%2 != 0 {	// zero-pad for odd-length keys
