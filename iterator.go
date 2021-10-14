@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -65,6 +66,9 @@ func (it *PrefixBoundIterator) LeafProof() [][]byte {
 }
 func (it *PrefixBoundIterator) Parent() common.Hash {
 	return it.current.Parent()
+}
+func (it *PrefixBoundIterator) AddResolver(store ethdb.KeyValueStore) {
+	it.current.AddResolver(store)
 }
 
 // Iterator with an upper bound value (hex path prefix)
