@@ -112,14 +112,16 @@ func (gen *prefixGenerator) HasNext() bool {
 }
 
 func (gen *prefixGenerator) Next() {
+	// increment the cursor, and
 	gen.current[gen.stepIndex] += gen.step
 	overflow := false
 	for ix := 0; ix < len(gen.current); ix++ {
-		rix := len(gen.current) - 1 - ix // reverse
-		if overflow {
+		rix := len(gen.current) - 1 - ix // index in prefix is reverse
+		if overflow {                    // apply overflow
 			gen.current[rix]++
 			overflow = false
 		}
+		// detect overflow at this index
 		if rix != 0 && gen.current[rix] > 0xf {
 			gen.current[rix] = 0
 			overflow = true
