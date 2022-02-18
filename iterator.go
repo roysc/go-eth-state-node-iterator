@@ -20,60 +20,30 @@ import (
 	"bytes"
 	"math/bits"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
 type PrefixBoundIterator struct {
-	current trie.NodeIterator
 	endKey  []byte
+	trie.NodeIterator
 }
 
 func (it *PrefixBoundIterator) Next(descend bool) bool {
-	if it.endKey == nil {
-		return it.current.Next(descend)
+	if it.EndPath == nil {
+		return it.NodeIterator.Next(descend)
 	}
-	if !it.current.Next(descend) {
+	if !it.NodeIterator.Next(descend) {
 		return false
 	}
 	// stop if underlying iterator went past endKey
-	cmp := bytes.Compare(it.current.Path(), it.endKey)
+	cmp := bytes.Compare(it.Path(), it.endKey)
 	return cmp <= 0
-}
-
-func (it *PrefixBoundIterator) Error() error {
-	return it.current.Error()
-}
-func (it *PrefixBoundIterator) Hash() common.Hash {
-	return it.current.Hash()
-}
-func (it *PrefixBoundIterator) Path() []byte {
-	return it.current.Path()
-}
-func (it *PrefixBoundIterator) Leaf() bool {
-	return it.current.Leaf()
-}
-func (it *PrefixBoundIterator) LeafKey() []byte {
-	return it.current.LeafKey()
-}
-func (it *PrefixBoundIterator) LeafBlob() []byte {
-	return it.current.LeafBlob()
-}
-func (it *PrefixBoundIterator) LeafProof() [][]byte {
-	return it.current.LeafProof()
-}
-func (it *PrefixBoundIterator) Parent() common.Hash {
-	return it.current.Parent()
-}
-func (it *PrefixBoundIterator) AddResolver(store ethdb.KeyValueStore) {
-	it.current.AddResolver(store)
 }
 
 // Iterator with an upper bound value (hex path prefix)
 func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) *PrefixBoundIterator {
-	return &PrefixBoundIterator{current: it, endKey: to}
+	return &PrefixBoundIterator{NodeIterator: it, endKey: to}
 }
 
 type prefixGenerator struct {
@@ -90,7 +60,7 @@ func newPrefixGenerator(nbins uint) prefixGenerator {
 	var step byte
 	var stepIndex uint
 	for ; nbins != 0; stepIndex++ {
-		divisor := byte(nbins & 0xf)
+		divisor := byte(nbins & 0xF)
 		if divisor != 0 {
 			step = 0x10 / divisor
 		}
@@ -108,11 +78,11 @@ func (gen *prefixGenerator) Value() []byte {
 }
 
 func (gen *prefixGenerator) HasNext() bool {
-	return gen.current[0] <= 0xf
+	return gen.current[0] < 0x10
 }
 
 func (gen *prefixGenerator) Next() {
-	// increment the cursor, and
+	// increment the cursor, and handle overflow
 	gen.current[gen.stepIndex] += gen.step
 	overflow := false
 	for ix := 0; ix < len(gen.current); ix++ {
