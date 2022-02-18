@@ -25,8 +25,8 @@ import (
 )
 
 type PrefixBoundIterator struct {
-	endKey  []byte
 	trie.NodeIterator
+	EndPath []byte
 }
 
 func (it *PrefixBoundIterator) Next(descend bool) bool {
@@ -37,13 +37,13 @@ func (it *PrefixBoundIterator) Next(descend bool) bool {
 		return false
 	}
 	// stop if underlying iterator went past endKey
-	cmp := bytes.Compare(it.Path(), it.endKey)
+	cmp := bytes.Compare(it.Path(), it.EndPath)
 	return cmp <= 0
 }
 
 // Iterator with an upper bound value (hex path prefix)
 func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) *PrefixBoundIterator {
-	return &PrefixBoundIterator{NodeIterator: it, endKey: to}
+	return &PrefixBoundIterator{NodeIterator: it, EndPath: to}
 }
 
 type prefixGenerator struct {
@@ -129,24 +129,24 @@ func eachPrefixRange(prefix []byte, nbins uint, callback func([]byte, []byte)) {
 // Cut a trie by path prefix, returning `nbins` iterators covering its subtries
 func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
 	var iters []trie.NodeIterator
-	eachPrefixRange(nil, nbins, func(key []byte, endKey []byte) {
-		it := tree.NodeIterator(HexToKeyBytes(key))
-		iters = append(iters, NewPrefixBoundIterator(it, endKey))
+	eachPrefixRange(nil, nbins, func(from []byte, to []byte) {
+		it := tree.NodeIterator(HexToKeyBytes(from))
+		iters = append(iters, NewPrefixBoundIterator(it, to))
 	})
 	return iters
 }
 
 // Factory for per-bin subtrie iterators
 type SubtrieIteratorFactory struct {
-	tree               state.Trie
-	startKeys, endKeys [][]byte
+	tree                 state.Trie
+	startPaths, endPaths [][]byte
 }
 
-func (fac *SubtrieIteratorFactory) Length() int { return len(fac.startKeys) }
+func (fac *SubtrieIteratorFactory) Length() int { return len(fac.startPaths) }
 
 func (fac *SubtrieIteratorFactory) IteratorAt(bin uint) *PrefixBoundIterator {
-	it := fac.tree.NodeIterator(HexToKeyBytes(fac.startKeys[bin]))
-	return NewPrefixBoundIterator(it, fac.endKeys[bin])
+	it := fac.tree.NodeIterator(HexToKeyBytes(fac.startPaths[bin]))
+	return NewPrefixBoundIterator(it, fac.endPaths[bin])
 }
 
 // Cut a trie by path prefix, returning `nbins` iterators covering its subtries
@@ -157,5 +157,5 @@ func NewSubtrieIteratorFactory(tree state.Trie, nbins uint) SubtrieIteratorFacto
 		starts = append(starts, key)
 		ends = append(ends, endKey)
 	})
-	return SubtrieIteratorFactory{tree: tree, startKeys: starts, endKeys: ends}
+	return SubtrieIteratorFactory{tree: tree, startPaths: starts, endPaths: ends}
 }
