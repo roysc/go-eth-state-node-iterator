@@ -17,10 +17,8 @@ func TestMakePaths(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		nbins := uint(1) << i
 		paths := iter.MakePaths(prefix, nbins)
-		t.Log(paths)
 		if len(paths) != int(nbins) {
-			t.Logf("failed: TestMakePaths")
-			t.Error("wrong number of paths", len(paths))
+			t.Errorf("wrong number of paths; expected %d, have %d", nbins, len(paths))
 		}
 	}
 }
@@ -83,8 +81,7 @@ func TestIterator(t *testing.T) {
 			iters := iter.SubtrieIterators(tree, nbins)
 			ix := 0
 			for b := uint(0); b < nbins; b++ {
-				it := iters[b]
-				for ; it.Next(true); ix++ {
+				for it := iters[b]; it.Next(true); ix++ {
 					if !bytes.Equal(allPaths[ix], it.Path()) {
 						t.Fatalf("wrong path value\nexpected:\t%v\nactual:\t\t%v",
 							allPaths[ix], it.Path())
