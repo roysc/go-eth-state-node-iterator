@@ -20,62 +20,44 @@ import (
 	"bytes"
 	"math/bits"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
+// PrefixBoundIterator is a NodeIterator constrained by a lower & upper bound (as hex path prefixes)
 type PrefixBoundIterator struct {
-	current trie.NodeIterator
-	endKey  []byte
+	trie.NodeIterator
+	EndPath []byte
+	primed  bool
 }
 
+// Next advances until reaching EndPath, or the underlying iterator becomes invalid
 func (it *PrefixBoundIterator) Next(descend bool) bool {
-	if it.endKey == nil {
-		return it.current.Next(descend)
+	// NodeIterator starts in an invalid state and must be advanced once before accessing values.
+	// Since this begins valid (pointing to the lower bound element), the first Next must be a no-op.
+	if !it.primed {
+		it.primed = true
+		return (it.EndPath == nil) || bytes.Compare(it.Path(), it.EndPath) < 0
 	}
-	if !it.current.Next(descend) {
+
+	if !it.NodeIterator.Next(descend) {
 		return false
 	}
-	// stop if underlying iterator went past endKey
-	cmp := bytes.Compare(it.current.Path(), it.endKey)
-	return cmp <= 0
+	return (it.EndPath == nil) || bytes.Compare(it.Path(), it.EndPath) < 0
 }
 
-func (it *PrefixBoundIterator) Error() error {
-	return it.current.Error()
-}
-func (it *PrefixBoundIterator) Hash() common.Hash {
-	return it.current.Hash()
-}
-func (it *PrefixBoundIterator) Path() []byte {
-	return it.current.Path()
-}
-func (it *PrefixBoundIterator) Leaf() bool {
-	return it.current.Leaf()
-}
-func (it *PrefixBoundIterator) LeafKey() []byte {
-	return it.current.LeafKey()
-}
-func (it *PrefixBoundIterator) LeafBlob() []byte {
-	return it.current.LeafBlob()
-}
-func (it *PrefixBoundIterator) LeafProof() [][]byte {
-	return it.current.LeafProof()
-}
-func (it *PrefixBoundIterator) Parent() common.Hash {
-	return it.current.Parent()
-}
-func (it *PrefixBoundIterator) AddResolver(store ethdb.KeyValueStore) {
-	it.current.AddResolver(store)
+// NewPrefixBoundIterator returns a PrefixBoundIterator with bounds [from, to)
+func NewPrefixBoundIterator(tree state.Trie, from, to []byte) *PrefixBoundIterator {
+	it := tree.NodeIterator(nil)
+	for it.Next(true) {
+		if bytes.Compare(from, it.Path()) <= 0 {
+			break
+		}
+	}
+	return &PrefixBoundIterator{NodeIterator: it, EndPath: to}
 }
 
-// Iterator with an upper bound value (hex path prefix)
-func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) *PrefixBoundIterator {
-	return &PrefixBoundIterator{current: it, endKey: to}
-}
-
+// generates nibble slice prefixes at uniform intervals
 type prefixGenerator struct {
 	current   []byte
 	step      byte
@@ -90,7 +72,7 @@ func newPrefixGenerator(nbins uint) prefixGenerator {
 	var step byte
 	var stepIndex uint
 	for ; nbins != 0; stepIndex++ {
-		divisor := byte(nbins & 0xf)
+		divisor := byte(nbins & 0xF)
 		if divisor != 0 {
 			step = 0x10 / divisor
 		}
@@ -108,11 +90,11 @@ func (gen *prefixGenerator) Value() []byte {
 }
 
 func (gen *prefixGenerator) HasNext() bool {
-	return gen.current[0] <= 0xf
+	return gen.current[0] < 0x10
 }
 
 func (gen *prefixGenerator) Next() {
-	// increment the cursor, and
+	// increment the cursor, and handle overflow
 	gen.current[gen.stepIndex] += gen.step
 	overflow := false
 	for ix := 0; ix < len(gen.current); ix++ {
@@ -129,7 +111,7 @@ func (gen *prefixGenerator) Next() {
 	}
 }
 
-// Generates paths that cut trie domain into `nbins` uniform conterminous bins (w/ opt. prefix)
+// MakePaths generates paths that cut trie domain into `nbins` uniform conterminous bins (w/ opt. prefix)
 // eg. MakePaths([], 2) => [[0] [8]]
 //	   MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
 func MakePaths(prefix []byte, nbins uint) [][]byte {
@@ -143,49 +125,28 @@ func MakePaths(prefix []byte, nbins uint) [][]byte {
 	return res
 }
 
-func eachPrefixRange(prefix []byte, nbins uint, callback func([]byte, []byte)) {
-	prefixes := MakePaths(prefix, nbins)
-	prefixes = append(prefixes, nil) // include tail
-	prefixes[0] = nil                // set bin 0 left bound to nil to include root
-	for i := 0; i < len(prefixes)-1; i++ {
-		key := prefixes[i]
-		if len(key)%2 != 0 { // zero-pad for odd-length keys
-			key = append(key, 0)
-		}
-		callback(key, prefixes[i+1])
+// truncate zeros from end of a path
+func truncateZeros(path []byte) []byte {
+	l := len(path)
+	for ; l > 0 && path[l-1] == 0; l-- {
+	}
+	return path[:l]
+}
+
+func eachInterval(prefix []byte, nbins uint, cb func([]byte, []byte)) {
+	paths := MakePaths(prefix, nbins)
+	paths = append(paths, nil) // include tail
+	paths[0] = nil             // set bin 0 left bound to nil to include root
+	for i := 0; i < len(paths)-1; i++ {
+		cb(truncateZeros(paths[i]), truncateZeros(paths[i+1]))
 	}
 }
 
-// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
+// SubtrieIterators cuts a trie by path prefix, returning `nbins` iterators covering its subtries
 func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
 	var iters []trie.NodeIterator
-	eachPrefixRange(nil, nbins, func(key []byte, endKey []byte) {
-		it := tree.NodeIterator(HexToKeyBytes(key))
-		iters = append(iters, NewPrefixBoundIterator(it, endKey))
+	eachInterval(nil, nbins, func(from, to []byte) {
+		iters = append(iters, NewPrefixBoundIterator(tree, from, to))
 	})
 	return iters
-}
-
-// Factory for per-bin subtrie iterators
-type SubtrieIteratorFactory struct {
-	tree               state.Trie
-	startKeys, endKeys [][]byte
-}
-
-func (fac *SubtrieIteratorFactory) Length() int { return len(fac.startKeys) }
-
-func (fac *SubtrieIteratorFactory) IteratorAt(bin uint) *PrefixBoundIterator {
-	it := fac.tree.NodeIterator(HexToKeyBytes(fac.startKeys[bin]))
-	return NewPrefixBoundIterator(it, fac.endKeys[bin])
-}
-
-// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
-func NewSubtrieIteratorFactory(tree state.Trie, nbins uint) SubtrieIteratorFactory {
-	starts := make([][]byte, 0, nbins)
-	ends := make([][]byte, 0, nbins)
-	eachPrefixRange(nil, nbins, func(key []byte, endKey []byte) {
-		starts = append(starts, key)
-		ends = append(ends, endKey)
-	})
-	return SubtrieIteratorFactory{tree: tree, startKeys: starts, endKeys: ends}
 }
