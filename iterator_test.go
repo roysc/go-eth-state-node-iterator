@@ -50,22 +50,22 @@ func TestIterator(t *testing.T) {
 			lower, upper []byte
 		}
 		cases := []testCase{
-			{nil, []byte{0}},
-			{[]byte{1}, []byte{2}},
-			{[]byte{3, 0}, []byte{4, 2, 0}},
-			{[]byte{5, 6, 9}, []byte{7}},
-			{[]byte{8}, []byte{8}},
-			{[]byte{8}, []byte{7}},
+			{nil, []byte{0, 0}},
+			{[]byte{1, 0}, []byte{2, 0}},
+			{[]byte{3, 5}, []byte{4, 2, 0}},
+			{[]byte{5, 6, 9, 0}, []byte{7, 0}},
+			{[]byte{8, 0}, []byte{8, 0}},
+			{[]byte{8, 0}, []byte{7, 0}},
 		}
 
 		runCase := func(t *testing.T, tc testCase) {
-			it := iter.NewPrefixBoundIterator(tree, tc.lower, tc.upper)
+			it := iter.NewPrefixBoundIterator(tree.NodeIterator(iter.HexToKeyBytes(tc.lower)), tc.upper)
 			for it.Next(true) {
 				if bytes.Compare(it.Path(), tc.lower) < 0 {
 					t.Fatalf("iterator outside lower bound: %v", it.Path())
 				}
-				if bytes.Compare(tc.upper, it.Path()) <= 0 {
-					t.Fatalf("iterator outside upper bound: %v", it.Path())
+				if bytes.Compare(tc.upper, it.Path()) < 0 {
+					t.Fatalf("iterator outside upper bound: %v <= %v", tc.upper, it.Path())
 				}
 			}
 		}
@@ -86,6 +86,10 @@ func TestIterator(t *testing.T) {
 						t.Fatalf("wrong path value\nexpected:\t%v\nactual:\t\t%v",
 							allPaths[ix], it.Path())
 					}
+				}
+				// if the last node path was even-length, it will be duplicated
+				if len(allPaths[ix-1])&0b1 == 0 {
+					ix--
 				}
 			}
 		}
