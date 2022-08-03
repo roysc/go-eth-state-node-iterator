@@ -59,7 +59,7 @@ func TestIterator(t *testing.T) {
 		}
 
 		runCase := func(t *testing.T, tc testCase) {
-			it := iter.NewPrefixBoundIterator(tree.NodeIterator(iter.HexToKeyBytes(tc.lower)), tc.upper)
+			it := iter.NewPrefixBoundIterator(tree.NodeIterator(iter.HexToKeyBytes(tc.lower)), tc.lower, tc.upper)
 			for it.Next(true) {
 				if bytes.Compare(it.Path(), tc.lower) < 0 {
 					t.Fatalf("iterator outside lower bound: %v", it.Path())

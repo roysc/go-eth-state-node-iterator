@@ -27,7 +27,8 @@ import (
 // PrefixBoundIterator is a NodeIterator constrained by a lower & upper bound (as hex path prefixes)
 type PrefixBoundIterator struct {
 	trie.NodeIterator
-	EndPath []byte
+	StartPath []byte
+	EndPath   []byte
 }
 
 func (it *PrefixBoundIterator) Next(descend bool) bool {
@@ -43,8 +44,8 @@ func (it *PrefixBoundIterator) Next(descend bool) bool {
 }
 
 // Iterator with an upper bound value (hex path prefix)
-func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) *PrefixBoundIterator {
-	return &PrefixBoundIterator{NodeIterator: it, EndPath: to}
+func NewPrefixBoundIterator(it trie.NodeIterator, from []byte, to []byte) *PrefixBoundIterator {
+	return &PrefixBoundIterator{NodeIterator: it, StartPath: from, EndPath: to}
 }
 
 // generates nibble slice prefixes at uniform intervals
@@ -133,7 +134,7 @@ func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
 	var iters []trie.NodeIterator
 	eachPrefixRange(nil, nbins, func(from []byte, to []byte) {
 		it := tree.NodeIterator(HexToKeyBytes(from))
-		iters = append(iters, NewPrefixBoundIterator(it, to))
+		iters = append(iters, NewPrefixBoundIterator(it, from, to))
 	})
 	return iters
 }
@@ -148,7 +149,7 @@ func (fac *SubtrieIteratorFactory) Length() int { return len(fac.startPaths) }
 
 func (fac *SubtrieIteratorFactory) IteratorAt(bin uint) *PrefixBoundIterator {
 	it := fac.tree.NodeIterator(HexToKeyBytes(fac.startPaths[bin]))
-	return NewPrefixBoundIterator(it, fac.endPaths[bin])
+	return NewPrefixBoundIterator(it, fac.startPaths[bin], fac.endPaths[bin])
 }
 
 // Cut a trie by path prefix, returning `nbins` iterators covering its subtries
