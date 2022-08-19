@@ -2,7 +2,10 @@ module github.com/vulcanize/go-eth-state-node-iterator
 
 go 1.18
 
-require github.com/ethereum/go-ethereum v1.10.23
+require (
+	github.com/ethereum/go-ethereum v1.10.23
+	github.com/sirupsen/logrus v1.9.0
+)
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
@@ -24,7 +27,7 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 )
 
 replace github.com/ethereum/go-ethereum v1.10.23 => github.com/vulcanize/go-ethereum v1.10.23-statediff-4.2.0-alpha
