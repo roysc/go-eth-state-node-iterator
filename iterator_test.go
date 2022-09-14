@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 
-	iter "github.com/vulcanize/go-eth-state-node-iterator"
-	fixt "github.com/vulcanize/go-eth-state-node-iterator/fixture"
+	iter "github.com/cerc-io/go-eth-state-node-iterator"
+	fixt "github.com/cerc-io/go-eth-state-node-iterator/fixture"
 )
 
 func TestMakePaths(t *testing.T) {

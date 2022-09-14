@@ -1,4 +1,4 @@
-module github.com/vulcanize/go-eth-state-node-iterator
+module github.com/cerc-io/go-eth-state-node-iterator
 
 go 1.18
 
@@ -30,4 +30,4 @@ require (
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 )
 
-replace github.com/ethereum/go-ethereum v1.10.23 => github.com/vulcanize/go-ethereum v1.10.23-statediff-4.2.0-alpha
+replace github.com/ethereum/go-ethereum v1.10.23 => github.com/cerc-io/go-ethereum v1.10.23-statediff-4.2.0-alpha
