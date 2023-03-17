@@ -3,7 +3,7 @@ module github.com/cerc-io/go-eth-state-node-iterator
 go 1.18
 
 require (
-	github.com/ethereum/go-ethereum v1.11.2
+	github.com/ethereum/go-ethereum v1.11.4
 	github.com/sirupsen/logrus v1.9.0
 )
 
@@ -21,6 +21,7 @@ require (
 	github.com/getsentry/sentry-go v0.17.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -36,7 +37,6 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.1 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
-	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
@@ -50,4 +50,4 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 )
 
-replace github.com/ethereum/go-ethereum v1.11.2 => github.com/cerc-io/go-ethereum v1.11.2-statediff-4.3.7-alpha
+replace github.com/ethereum/go-ethereum v1.11.4 => github.com/cerc-io/go-ethereum v1.11.4-statediff-4.3.8-alpha
