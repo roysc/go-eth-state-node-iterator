@@ -6,10 +6,6 @@ import (
 	"runtime"
 )
 
-// TODO: embed some mainnet data
-// import "embed"
-//_go:embed mainnet_data.tar.gz
-
 var (
 	ChainDataPath, AncientDataPath string
 )

@@ -2,6 +2,7 @@ package iterator
 
 import (
 	"bytes"
+
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -23,7 +24,7 @@ func CompareNodes(a, b trie.NodeIterator) int {
 	return 0
 }
 
-// hexToKeyBytes turns hex nibbles into key bytes.
+// HexToKeyBytes turns hex nibbles into key bytes.
 // This can only be used for keys of even length.
 func HexToKeyBytes(hex []byte) []byte {
 	if hasTerm(hex) {

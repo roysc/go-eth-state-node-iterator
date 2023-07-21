@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 
-	iter "github.com/cerc-io/go-eth-state-node-iterator"
-	fixt "github.com/cerc-io/go-eth-state-node-iterator/fixture"
+	iter "github.com/cerc-io/eth-iterator-utils"
+	"github.com/cerc-io/eth-iterator-utils/fixture"
 )
 
 func TestMakePaths(t *testing.T) {
@@ -24,11 +24,14 @@ func TestMakePaths(t *testing.T) {
 }
 
 func TestIterator(t *testing.T) {
-	kvdb, ldberr := rawdb.NewLevelDBDatabase(fixt.ChainDataPath, 1024, 256, "eth-pg-ipfs-state-snapshot", false)
+	kvdb, ldberr := rawdb.NewLevelDBDatabase(fixture.ChainDataPath, 1024, 256, "vdb-geth", false)
 	if ldberr != nil {
 		t.Fatal(ldberr)
 	}
-	edb, err := rawdb.NewDatabaseWithFreezer(kvdb, fixt.AncientDataPath, "eth-pg-ipfs-state-snapshot", false)
+	edb, err := rawdb.NewDatabaseWithFreezer(kvdb, fixture.AncientDataPath, "vdb-geth", false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +63,7 @@ func TestIterator(t *testing.T) {
 		}
 
 		runCase := func(t *testing.T, tc testCase) {
-			it := iter.NewPrefixBoundIterator(tree.NodeIterator(iter.HexToKeyBytes(tc.lower)), tc.lower, tc.upper)
+			it := iter.NewPrefixBoundIterator(tree.NodeIterator(iter.HexToKeyBytes(tc.lower)), tc.upper)
 			for it.Next(true) {
 				if bytes.Compare(it.Path(), tc.lower) < 0 {
 					t.Fatalf("iterator outside lower bound: %v", it.Path())
@@ -76,10 +79,10 @@ func TestIterator(t *testing.T) {
 	})
 
 	t.Run("trie is covered", func(t *testing.T) {
-		allPaths := fixt.Block1_Paths
+		allPaths := fixture.Block1_Paths
 		cases := []uint{1, 2, 4, 8, 16, 32}
 		runCase := func(t *testing.T, nbins uint) {
-			iters := iter.SubtrieIterators(tree, nbins)
+			iters := iter.SubtrieIterators(tree.NodeIterator, nbins)
 			ix := 0
 			for b := uint(0); b < nbins; b++ {
 				for it := iters[b]; it.Next(true); ix++ {

@@ -20,16 +20,18 @@ import (
 	"bytes"
 	"math/bits"
 
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
 // PrefixBoundIterator is a NodeIterator constrained by a lower & upper bound (as hex path prefixes)
 type PrefixBoundIterator struct {
 	trie.NodeIterator
-	StartPath []byte
-	EndPath   []byte
+	EndPath []byte
 }
+
+// IteratorConstructor is a constructor returning a NodeIterator, which is used to decouple this
+// code from the trie implementation.
+type IteratorConstructor = func(startKey []byte) trie.NodeIterator
 
 func (it *PrefixBoundIterator) Next(descend bool) bool {
 	if it.EndPath == nil {
@@ -38,14 +40,14 @@ func (it *PrefixBoundIterator) Next(descend bool) bool {
 	if !it.NodeIterator.Next(descend) {
 		return false
 	}
-	// stop if underlying iterator went past endKey
+	// stop if underlying iterator went past upper bound
 	cmp := bytes.Compare(it.Path(), it.EndPath)
 	return cmp <= 0
 }
 
-// Iterator with an upper bound value (hex path prefix)
-func NewPrefixBoundIterator(it trie.NodeIterator, from []byte, to []byte) *PrefixBoundIterator {
-	return &PrefixBoundIterator{NodeIterator: it, StartPath: from, EndPath: to}
+// NewPrefixBoundIterator returns an iterator with an upper bound value (hex path prefix)
+func NewPrefixBoundIterator(it trie.NodeIterator, to []byte) *PrefixBoundIterator {
+	return &PrefixBoundIterator{NodeIterator: it, EndPath: to}
 }
 
 // generates nibble slice prefixes at uniform intervals
@@ -102,9 +104,9 @@ func (gen *prefixGenerator) Next() {
 	}
 }
 
-// Generates paths that cut trie domain into `nbins` uniform conterminous bins (w/ opt. prefix)
+// MakePaths generates paths that cut trie domain into `nbins` uniform conterminous bins (w/ opt. prefix)
 // eg. MakePaths([], 2) => [[0] [8]]
-//	   MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
+// MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
 func MakePaths(prefix []byte, nbins uint) [][]byte {
 	var res [][]byte
 	for it := newPrefixGenerator(nbins); it.HasNext(); it.Next() {
@@ -129,36 +131,12 @@ func eachPrefixRange(prefix []byte, nbins uint, callback func([]byte, []byte)) {
 	}
 }
 
-// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
-func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
+// SubtrieIterators cuts a trie by path prefix, returning `nbins` iterators covering its subtries
+func SubtrieIterators(makeIterator IteratorConstructor, nbins uint) []trie.NodeIterator {
 	var iters []trie.NodeIterator
 	eachPrefixRange(nil, nbins, func(from []byte, to []byte) {
-		it := tree.NodeIterator(HexToKeyBytes(from))
-		iters = append(iters, NewPrefixBoundIterator(it, from, to))
+		it := makeIterator(HexToKeyBytes(from))
+		iters = append(iters, NewPrefixBoundIterator(it, to))
 	})
 	return iters
-}
-
-// Factory for per-bin subtrie iterators
-type SubtrieIteratorFactory struct {
-	tree                 state.Trie
-	startPaths, endPaths [][]byte
-}
-
-func (fac *SubtrieIteratorFactory) Length() int { return len(fac.startPaths) }
-
-func (fac *SubtrieIteratorFactory) IteratorAt(bin uint) *PrefixBoundIterator {
-	it := fac.tree.NodeIterator(HexToKeyBytes(fac.startPaths[bin]))
-	return NewPrefixBoundIterator(it, fac.startPaths[bin], fac.endPaths[bin])
-}
-
-// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
-func NewSubtrieIteratorFactory(tree state.Trie, nbins uint) SubtrieIteratorFactory {
-	starts := make([][]byte, 0, nbins)
-	ends := make([][]byte, 0, nbins)
-	eachPrefixRange(nil, nbins, func(key []byte, endKey []byte) {
-		starts = append(starts, key)
-		ends = append(ends, endKey)
-	})
-	return SubtrieIteratorFactory{tree: tree, startPaths: starts, endPaths: ends}
 }

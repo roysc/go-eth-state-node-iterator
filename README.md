@@ -1,2 +1,7 @@
-# go-eth-state-node-iterator
-**DEPRECATED** This pkg has been moved to our [statediffing geth fork](https://github.com/cerc-io/go-ethereum/tree/v1.11.6-statediff-v5/trie/concurrent_iterator)
+# go-ethereum iterator utilites
+
+Includes:
+
+  * `PrefixBoundIterator` for iterating subtries.
+  * `SubtrieIterators` for dividing a state trie into disjoint subtries.
+  * `tracker` package for tracking, dumping and restoring the state of open iterators.
