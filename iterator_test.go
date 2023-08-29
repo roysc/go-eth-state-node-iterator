@@ -87,12 +87,13 @@ func TestIterator(t *testing.T) {
 			for b := uint(0); b < nbins; b++ {
 				for it := iters[b]; it.Next(true); ix++ {
 					if !bytes.Equal(allPaths[ix], it.Path()) {
-						t.Fatalf("wrong path value\nexpected:\t%v\nactual:\t\t%v",
-							allPaths[ix], it.Path())
+						t.Fatalf("wrong path value in bin %d (index %d)\nexpected:\t%v\nactual:\t\t%v",
+							b, ix, allPaths[ix], it.Path())
 					}
 				}
-				// if the last node path was even-length, it will be duplicated
-				if len(allPaths[ix-1])&0b1 == 0 {
+				// if the last node path for the previous bin was even-length, the next iterator
+				// will seek to the same node and it will be duplicated (see comment in Next()).
+				if len(allPaths[ix-1])&1 == 0 {
 					ix--
 				}
 			}

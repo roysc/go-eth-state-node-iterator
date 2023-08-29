@@ -46,8 +46,8 @@ func (tr *Tracker) CaptureSignal(cancelCtx context.CancelFunc) {
 	go func() {
 		sig := <-sigChan
 		log.Error("Signal received (%v), stopping", "signal", sig)
-		// cancel context on receiving a signal
-		// on ctx cancellation, all the iterators complete processing of their current node before stopping
+		// Cancel context on receiving a signal. On cancellation, all tracked iterators complete
+		// processing of their current node before stopping.
 		cancelCtx()
 	}()
 }
@@ -90,8 +90,9 @@ func (tr *Tracker) dump() error {
 	return out.WriteAll(rows)
 }
 
-// Restore attempts to read iterator state from file
-// if file doesn't exist, returns an empty slice with no error
+// Restore attempts to read iterator state from the recovery file.
+// If the file doesn't exist, returns an empty slice with no error.
+// Restored iterators are constructed in the same order as in the returned slice.
 func (tr *Tracker) Restore(makeIterator iter.IteratorConstructor) ([]trie.NodeIterator, error) {
 	file, err := os.Open(tr.recoveryFile)
 	if err != nil {
@@ -185,7 +186,7 @@ func (it *Iterator) Next(descend bool) bool {
 }
 
 // Subtracts 1 from the last byte in a path slice, carrying if needed.
-// Does nothing, returning false, for all-zero inputs.
+// Does nothing, returning false, for all-zero inputs (underflow).
 func decrementPath(path []byte) bool {
 	// check for all zeros
 	allzero := true

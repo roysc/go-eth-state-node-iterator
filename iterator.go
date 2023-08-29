@@ -40,9 +40,13 @@ func (it *PrefixBoundIterator) Next(descend bool) bool {
 	if !it.NodeIterator.Next(descend) {
 		return false
 	}
-	// stop if underlying iterator went past upper bound
-	cmp := bytes.Compare(it.Path(), it.EndPath)
-	return cmp <= 0
+	// Stop if underlying iterator went past upper bound.
+	// Note: this results in a single node of overlap between binned iterators. The more correct
+	// behavior would be to make this a strict less-than, so that iterators cover mutually disjoint
+	// subtries. Unfortunately, the NodeIterator constructor takes a compact path, meaning
+	// odd-length paths must be padded with a 0, so e.g. [8] becomes [8, 0], which means we would
+	// skip [8]. So, we use <= here to cover that node for the "next" bin.
+	return bytes.Compare(it.Path(), it.EndPath) <= 0
 }
 
 // NewPrefixBoundIterator returns an iterator with an upper bound value (hex path prefix)
