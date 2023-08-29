@@ -129,10 +129,9 @@ func (tr *Tracker) Restore(makeIterator iter.IteratorConstructor) ([]trie.NodeIt
 		}
 
 		// force the lower bound path to an even length (required by geth API/HexToKeyBytes)
-		if len(recoveredPath)&0b1 == 1 {
-			// decrement first to avoid skipped nodes
-			decrementPath(recoveredPath)
-			recoveredPath = append(recoveredPath, 0)
+		if len(recoveredPath)&1 == 1 {
+			// to avoid skipped nodes, we must rewind by one index
+			recoveredPath = rewindPath(recoveredPath)
 		}
 		it := makeIterator(iter.HexToKeyBytes(recoveredPath))
 		boundIt := iter.NewPrefixBoundIterator(it, endPath)
@@ -185,25 +184,22 @@ func (it *Iterator) Next(descend bool) bool {
 	return ret
 }
 
-// Subtracts 1 from the last byte in a path slice, carrying if needed.
-// Does nothing, returning false, for all-zero inputs (underflow).
-func decrementPath(path []byte) bool {
-	// check for all zeros
-	allzero := true
-	for i := 0; i < len(path); i++ {
-		allzero = allzero && path[i] == 0
+// Rewinds to the path of the previous (pre-order) node:
+// If the last byte of the path is zero, pops it. Otherwise, decrements it
+// and pads with 0xF to 64 bytes (e.g. [1] => [0 f f f ...]).
+// Returns the passed path (which is also modified in place)
+func rewindPath(path []byte) []byte {
+	if len(path) == 0 {
+		return path
 	}
-	if allzero {
-		return false
+	if path[len(path)-1] == 0 {
+		return path[:len(path)-1]
 	}
-	for i := len(path) - 1; i >= 0; i-- {
-		val := path[i]
-		path[i]--
-		if val == 0 {
-			path[i] = 0xf
-		} else {
-			return true
-		}
+	path[len(path)-1]--
+	padded := make([]byte, 64)
+	i := copy(padded, path)
+	for ; i < len(padded); i++ {
+		padded[i] = 0xf
 	}
-	return true
+	return padded
 }
